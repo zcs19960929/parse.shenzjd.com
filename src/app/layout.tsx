@@ -93,14 +93,13 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" type="image/svg+xml" href="https://cdn.jsdmirror.com/gh/wu529778790/img.shenzjd.com@master/blog/imgx-20260828-215653-2ha5.svg" />
         <link rel="apple-touch-icon" href="https://cdn.jsdmirror.com/gh/wu529778790/img.shenzjd.com@master/blog/imgx-20260828-220754-822r.png" />
-        {/* 顶部导航：@wu529778790/site-navbar Web Component 版，一条 JS 引入。
-            avatar="false" 隐藏右上角头像/登录入口；wx-auth-enabled="false"
-            让组件不加载 wx-auth-sdk、不发登录校验（站点改为免登录使用）。
-            如需恢复登录，去掉这两个属性即可 */}
-        <script
+        {/* 顶部导航已隐藏：@wu529778790/site-navbar 不再引入。
+            如需恢复顶部导航，取消下方 script 注释并在 <body> 顶部放回
+            <site-navbar avatar="false" wx-auth-enabled="false" /> 即可 */}
+        {/* <script
           src="https://unpkg.com/@wu529778790/site-navbar@latest/dist/site-navbar.wc.js"
           defer
-        />
+        /> */}
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{
@@ -120,7 +119,6 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased min-h-screen flex flex-col noise-overlay">
-        <site-navbar avatar="false" wx-auth-enabled="false" />
         <main className="flex-1">{children}</main>
         <Footer />
       </body>
