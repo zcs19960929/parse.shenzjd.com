@@ -8,7 +8,15 @@ import type { DetailedHTMLProps, HTMLAttributes } from "react";
 declare module "react" {
   namespace JSX {
     interface IntrinsicElements {
-      "site-navbar": DetailedHTMLProps<HTMLAttributes<HTMLElement>, HTMLElement>;
+      "site-navbar": DetailedHTMLProps<
+        HTMLAttributes<HTMLElement> & {
+          /** 头像/登录入口：传 "false" 隐藏右上角头像 */
+          avatar?: string;
+          /** wx-auth-sdk 登录态接入：传 "false" 不加载 SDK、不发校验 */
+          "wx-auth-enabled"?: string;
+        },
+        HTMLElement
+      >;
     }
   }
 }

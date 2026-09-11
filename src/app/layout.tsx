@@ -93,17 +93,10 @@ export default function RootLayout({
         <meta name="viewport" content="width=device-width, initial-scale=1.0" />
         <link rel="icon" type="image/svg+xml" href="https://cdn.jsdmirror.com/gh/wu529778790/img.shenzjd.com@master/blog/imgx-20260828-215653-2ha5.svg" />
         <link rel="apple-touch-icon" href="https://cdn.jsdmirror.com/gh/wu529778790/img.shenzjd.com@master/blog/imgx-20260828-220754-822r.png" />
-        {/* 右侧悬浮公众号+赞赏码浮窗：@wu529778790/floating-qr Web Component 版
-            一行 <script> 引入，自动注册 <floating-qr> 并注入默认浮窗（right-center，
-            默认隐藏移动端、关闭后刷新重现），无需额外标签/JS */}
-        <script
-          src="https://unpkg.com/@wu529778790/floating-qr@latest/dist/floating-qr.wc.js"
-          defer
-        />
-        {/* 顶部导航 + 头像浮窗：@wu529778790/site-navbar Web Component 版
-            一条 JS 引入，组件内部自动加载并初始化 wx-auth-sdk（静默校验登录态），
-            无需手动引 SDK、无需写 WxAuth.init()。body 顶部放一个 <site-navbar> 标签即出现整条导航。
-            解析主流程的登录弹窗由 src/lib/wx-auth-client.ts 复用同一全局 window.WxAuth 实例触发 */}
+        {/* 顶部导航：@wu529778790/site-navbar Web Component 版，一条 JS 引入。
+            avatar="false" 隐藏右上角头像/登录入口；wx-auth-enabled="false"
+            让组件不加载 wx-auth-sdk、不发登录校验（站点改为免登录使用）。
+            如需恢复登录，去掉这两个属性即可 */}
         <script
           src="https://unpkg.com/@wu529778790/site-navbar@latest/dist/site-navbar.wc.js"
           defer
@@ -127,7 +120,7 @@ export default function RootLayout({
         />
       </head>
       <body className="antialiased min-h-screen flex flex-col noise-overlay">
-        <site-navbar />
+        <site-navbar avatar="false" wx-auth-enabled="false" />
         <main className="flex-1">{children}</main>
         <Footer />
       </body>

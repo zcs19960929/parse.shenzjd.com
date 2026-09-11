@@ -1,12 +1,11 @@
 /**
  * wx-auth 客户端接入（UMD 全局单例，与 panhub 同款策略）
  *
- * - layout.tsx 用 unpkg 引入 UMD（不锁版本，始终最新）并做一次
- *   WxAuth.init({ silent: true, required: false })：静默校验登录态，导航头像可发起登录
+ * - 站点已改为免登录使用，本模块当前无人调用（解析弹窗已下线，见
+ *   VideoParserForm.tsx 注释）；文件保留供恢复登录时复用
  * - 本模块不装 npm 依赖，SDK 发版站点零改动；仅在 window.WxAuth 未就绪时
  *   兜底注入同一 URL 的 script（id 去重，保证全站只有这一份实例）
- * - 解析主流程弹窗因此为可选形态（带 × 可关，关掉即中止本次解析）；
- *   服务端 wx-auth-guard 仍强制校验登录态，安全口径不变
+ * - 服务端 api-middleware 的微信认证门禁同步下线，恢复时两处一起还原
  */
 
 const SDK_URL = "https://unpkg.com/wx-auth-sdk/dist/wx-auth.umd.js";

@@ -16,7 +16,8 @@ import {
 } from "@/lib/api-utils";
 import { normalizeResult } from "@/lib/normalize-result";
 import { recordParse } from "@/lib/analytics";
-import { getWxAuthToken, checkWxAuthToken } from "@/lib/wx-auth-guard";
+// 微信认证门禁已下线（免登录使用）；恢复时取消此 import 及下方认证块注释
+// import { getWxAuthToken, checkWxAuthToken } from "@/lib/wx-auth-guard";
 import { honeypotResponse } from "@/lib/honeypot";
 import { getResultCache, putResultCache, resultStale } from "@/lib/result-cache";
 
@@ -75,12 +76,13 @@ const ROUTE_DOMAIN_MAP: Record<string, { name: string; hosts: string[] }> = {
   qsmusic: { name: "汽水音乐", hosts: ["music.douyin.com", "qishui.douyin.com"] },
 };
 
-// 需强制微信认证的解析类路由 = 23 个平台专用接口 + 统一入口 /api/parse。
+// 需强制微信认证的解析类路由（认证门禁已下线，保留定义供恢复时使用）：
+// = 23 个平台专用接口 + 统一入口 /api/parse。
 // health/stats/image/engines 等非解析接口是原生路由（不经本中间件），天然不受影响。
-const AUTH_REQUIRED_ROUTES = new Set<string>([
-  ...Object.keys(ROUTE_DOMAIN_MAP),
-  "parse",
-]);
+// const AUTH_REQUIRED_ROUTES = new Set<string>([
+//   ...Object.keys(ROUTE_DOMAIN_MAP),
+//   "parse",
+// ]);
 
 // 通用 API 处理函数
 export const createApiHandler = (
@@ -267,29 +269,28 @@ export const createApiHandler = (
       }
     }
 
-    // 解析类接口强制微信认证（登录才能解析）：
-    // 读取 SDK 写入的 wxauth-token Cookie → 远程校验（5 分钟缓存）→ 未认证 401。
+    // 解析类接口的微信认证门禁已下线：站点改为免登录使用。
+    // 恢复时取消下方注释（读取 wxauth-token Cookie → 远程校验 → 未认证 401）。
     // 豁免：非解析类接口（health/stats/image/engines 等原生路由不经本中间件）、
     // VITEST 测试环境。
-    // 认证通过的 token 记录到外层变量，供下方免费配额门禁与成功计数复用。
-    let wxAuthToken: string | null = null;
-    if (process.env.VITEST !== "true" && AUTH_REQUIRED_ROUTES.has(routeName)) {
-      wxAuthToken = getWxAuthToken(request);
-      const authenticated = wxAuthToken ? await checkWxAuthToken(wxAuthToken) : false;
-      if (!authenticated) {
-        logParse("failed", 401, Date.now() - startTime, "未完成微信认证");
-        logger.warn(
-          `未认证解析被拒绝: route=${routeName} ip=${clientIP} url=${sanitizedUrl.substring(0, 100)}`
-        );
-        return Response.json(
-          errorResponse("请先关注公众号「神族九帝」并完成认证后使用解析功能", 401),
-          {
-            status: safeStatus(401),
-            headers
-          }
-        );
-      }
-    }
+    // let wxAuthToken: string | null = null;
+    // if (process.env.VITEST !== "true" && AUTH_REQUIRED_ROUTES.has(routeName)) {
+    //   wxAuthToken = getWxAuthToken(request);
+    //   const authenticated = wxAuthToken ? await checkWxAuthToken(wxAuthToken) : false;
+    //   if (!authenticated) {
+    //     logParse("failed", 401, Date.now() - startTime, "未完成微信认证");
+    //     logger.warn(
+    //       `未认证解析被拒绝: route=${routeName} ip=${clientIP} url=${sanitizedUrl.substring(0, 100)}`
+    //     );
+    //     return Response.json(
+    //       errorResponse("请先关注公众号「神族九帝」并完成认证后使用解析功能", 401),
+    //       {
+    //         status: safeStatus(401),
+    //         headers
+    //       }
+    //     );
+    //   }
+    // }
 
     // 统一入口的共享结果缓存：放在认证之后（未认证用户不消费缓存）。
     // 命中先探测主直链，明确死链（签名过期）视为未命中走重新解析，

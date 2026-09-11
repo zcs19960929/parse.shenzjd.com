@@ -1,16 +1,18 @@
-// 微信认证守卫单元测试
+// 解析接口认证门禁测试
+// 认证门禁已下线（站点免登录使用）：任何凭证状态下解析都应正常放行。
+// 文件保留，用于回归验证「门禁下线后凭证/伪造头不影响解析主流程」。
 // @ts-nocheck
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { createApiHandler } from "@/lib/api-middleware";
 import * as apiUtils from "@/lib/api-utils";
 
-describe("wx-auth guard (解析接口强制认证)", () => {
+describe("解析接口认证门禁（已下线，免登录放行）", () => {
   const originalFetch = global.fetch;
   const originalVITEST = process.env.VITEST;
 
   beforeEach(() => {
     vi.restoreAllMocks();
-    // 关闭 VITEST 豁免，让守卫真实生效（rateLimit 等仍需 mock）
+    // 关闭 VITEST 豁免（认证门禁已注释，此环境变量当前无生效点）
     delete process.env.VITEST;
     vi.spyOn(apiUtils, "rateLimit").mockReturnValue(true);
     vi.spyOn(apiUtils, "isValidUrl").mockReturnValue(true);
@@ -24,61 +26,41 @@ describe("wx-auth guard (解析接口强制认证)", () => {
     else process.env.VITEST = originalVITEST;
   });
 
-  it("无认证 Cookie 时解析接口返回 401", async () => {
-    const parseSpy = vi.fn();
+  it("无认证 Cookie 时解析正常放行（不再 401）", async () => {
+    const fetchMock = vi.fn();
+    global.fetch = fetchMock;
+    const parseSpy = vi.fn().mockResolvedValue({ code: 200, msg: "ok" });
     const handler = createApiHandler(parseSpy);
     const res = await handler(
       new Request(
         "http://127.0.0.1/api/parse?url=https://v.douyin.com/gnrPF7GJYkY/"
       )
     );
-    expect(res.status).toBe(401);
-    const json = await res.json();
-    expect(json.code).toBe(401);
-    expect(json.msg).toContain("关注公众号");
-    expect(parseSpy).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(parseSpy).toHaveBeenCalledTimes(1);
+    // 门禁下线后不应发起任何认证 check 请求
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("带有效 token 时放行解析", async () => {
+  it("携带无效 token Cookie 时同样放行解析", async () => {
     global.fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ authenticated: true, user: {} }), {
-        status: 200,
-      })
+      new Response(JSON.stringify({ authenticated: false }), { status: 200 })
     );
     const parseSpy = vi.fn().mockResolvedValue({ code: 200, msg: "ok" });
     const handler = createApiHandler(parseSpy);
     const res = await handler(
       new Request(
-        "http://127.0.0.1/api/parse?url=https://v.douyin.com/gnrPF7GJYkY/",
-        { headers: { cookie: "wxauth-token=valid.token.abc" } }
-      )
-    );
-    expect(parseSpy).toHaveBeenCalledTimes(1);
-    expect(res.status).toBe(200);
-  });
-
-  it("token 无效时返回 401 且不调用解析器", async () => {
-    global.fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ authenticated: false }), { status: 200 })
-    );
-    const parseSpy = vi.fn();
-    const handler = createApiHandler(parseSpy);
-    const res = await handler(
-      new Request(
-        "http://127.0.0.1/api/parse?url=https://v.douyin.com/gnrPF7GJYkY/",
+        "http://127.0.0.1/api/parse?url=https://v.douyin.com/badtoken1/",
         { headers: { cookie: "wxauth-token=bad.token.xyz" } }
       )
     );
-    expect(res.status).toBe(401);
-    expect(parseSpy).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(parseSpy).toHaveBeenCalledTimes(1);
   });
 
-  it("Authorization: Bearer 有效 token（小程序端）时放行解析", async () => {
-    global.fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ authenticated: true, user: { openid: "mp:oXXXX", type: "mp" } }), {
-        status: 200,
-      })
-    );
+  it("Authorization: Bearer 头存在时不再校验，直接放行", async () => {
+    const fetchMock = vi.fn();
+    global.fetch = fetchMock;
     const parseSpy = vi.fn().mockResolvedValue({ code: 200, msg: "ok" });
     const handler = createApiHandler(parseSpy);
     const res = await handler(
@@ -89,120 +71,39 @@ describe("wx-auth guard (解析接口强制认证)", () => {
     );
     expect(res.status).toBe(200);
     expect(parseSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it("Bearer 前缀大小写不敏感且允许多余空白", async () => {
-    global.fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ authenticated: true }), { status: 200 })
-    );
-    const parseSpy = vi.fn().mockResolvedValue({ code: 200, msg: "ok" });
-    const handler = createApiHandler(parseSpy);
-    const res = await handler(
-      new Request(
-        "http://127.0.0.1/api/parse?url=https://v.douyin.com/gnqPF7GJYkY/trimme/",
-        { headers: { Authorization: "  bearer   mp.token.trim.me  " } }
-      )
-    );
-    expect(res.status).toBe(200);
-    // 取出的 token 已 trim，check URL 中不应有空格
-    const checkUrl = String(global.fetch.mock.calls[0][0]);
-    expect(checkUrl).toContain("token=mp.token.trim.me");
-    expect(parseSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it("Authorization 头存在但非 Bearer scheme 时按无凭证处理（401）", async () => {
-    const fetchMock = vi.fn();
-    global.fetch = fetchMock;
-    const parseSpy = vi.fn();
-    const handler = createApiHandler(parseSpy);
-    const res = await handler(
-      new Request(
-        "http://127.0.0.1/api/parse?url=https://v.douyin.com/gnrPF7GJYkY/",
-        { headers: { authorization: "Basic dXNlcjpwYXNz" } }
-      )
-    );
-    expect(res.status).toBe(401);
-    expect(parseSpy).not.toHaveBeenCalled();
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("Cookie 与 Authorization 同时存在时 Cookie 优先", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ authenticated: true }), { status: 200 })
-    );
+  it("非 Bearer scheme 的 Authorization 头不影响解析", async () => {
+    const fetchMock = vi.fn();
     global.fetch = fetchMock;
     const parseSpy = vi.fn().mockResolvedValue({ code: 200, msg: "ok" });
-    const handler = createApiHandler(parseSpy);
-    await handler(
-      new Request(
-        "http://127.0.0.1/api/parse?url=https://v.douyin.com/gnsPF7GJYkY/cookiewins/",
-        {
-          headers: {
-            cookie: "wxauth-token=cookie.token.wins",
-            authorization: "Bearer bearer.token.loses",
-          },
-        }
-      )
-    );
-    const checkUrl = String(fetchMock.mock.calls[0][0]);
-    expect(checkUrl).toContain("token=cookie.token.wins");
-    expect(parseSpy).toHaveBeenCalledTimes(1);
-  });
-
-  it("Bearer token 无效时返回 401 且不调用解析器", async () => {
-    global.fetch = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ authenticated: false }), { status: 200 })
-    );
-    const parseSpy = vi.fn();
     const handler = createApiHandler(parseSpy);
     const res = await handler(
       new Request(
-        "http://127.0.0.1/api/parse?url=https://v.douyin.com/gnrPF7GJYkY/",
-        { headers: { authorization: "Bearer expired.mp.token" } }
+        "http://127.0.0.1/api/parse?url=https://v.douyin.com/nonscheme1/",
+        { headers: { authorization: "Basic dXNlcjpwYXNz" } }
       )
     );
-    expect(res.status).toBe(401);
-    expect(parseSpy).not.toHaveBeenCalled();
+    expect(res.status).toBe(200);
+    expect(parseSpy).toHaveBeenCalledTimes(1);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("校验结果按 token 缓存 5 分钟：同一 token 只调一次 check", async () => {
-    const fetchMock = vi.fn().mockResolvedValue(
-      new Response(JSON.stringify({ authenticated: true }), { status: 200 })
-    );
-    global.fetch = fetchMock;
+  it("x-parse-internal 头无任何特殊作用（伪造头不会绕过/影响任何逻辑）", async () => {
     const parseSpy = vi.fn().mockResolvedValue({ code: 200, msg: "ok" });
-    const handler = createApiHandler(parseSpy);
-    const cookie = { cookie: "wxauth-token=cached-token-0001" };
-    // 两次请求用不同 URL：避免命中解析结果缓存，专门验证认证缓存
-    await handler(
-      new Request("http://127.0.0.1/api/parse?url=https://v.douyin.com/aaa/", {
-        headers: cookie,
-      })
-    );
-    await handler(
-      new Request("http://127.0.0.1/api/parse?url=https://v.douyin.com/bbb/", {
-        headers: cookie,
-      })
-    );
-    expect(fetchMock).toHaveBeenCalledTimes(1);
-    expect(parseSpy).toHaveBeenCalledTimes(2);
-  });
-
-  it("x-parse-internal 头不再绕过认证（回归：伪造内部标记应 401）", async () => {
-    // 旧版中间件信任客户端可伪造的 x-parse-internal 头跳过认证，已废除；
-    // 内部转发改为统一入口直接函数调用，该头对守卫不再有任何作用。
-    const parseSpy = vi.fn();
     const handler = createApiHandler(parseSpy);
     const res = await handler(
       new Request("http://127.0.0.1/api/parse?url=https://v.douyin.com/zzz/", {
         headers: { "x-parse-internal": "1" },
       })
     );
-    expect(res.status).toBe(401);
-    expect(parseSpy).not.toHaveBeenCalled();
+    // 与普通请求行为一致：正常解析（该 URL 解析器返回失败也只体现为 400 业务失败）
+    expect(parseSpy).toHaveBeenCalledTimes(1);
+    expect([200, 400]).toContain(res.status);
   });
 
-  it("非解析类路由（route=test）跳过守卫", async () => {
+  it("非解析类路由（route=test）不受影响", async () => {
     const parseSpy = vi.fn().mockResolvedValue({ code: 200, msg: "ok" });
     const handler = createApiHandler(parseSpy);
     const res = await handler(
