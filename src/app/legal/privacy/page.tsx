@@ -3,7 +3,7 @@ import LegalLayout from "@/components/LegalLayout";
 import { siteConfig } from "@/config/site";
 
 export const metadata: Metadata = {
-  title: `隐私政策 - ${siteConfig.name}`,
+  title: "隐私政策",
   description: `${siteConfig.name} 隐私政策，说明我们如何处理你的信息与日志。`,
   robots: { index: true, follow: true },
 };

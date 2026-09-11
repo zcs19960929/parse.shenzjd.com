@@ -3,7 +3,7 @@ import LegalLayout from "@/components/LegalLayout";
 import { siteConfig } from "@/config/site";
 
 export const metadata: Metadata = {
-  title: `用户协议 - ${siteConfig.name}`,
+  title: "用户协议",
   description: `${siteConfig.name} 用户服务协议，明确服务内容、使用条件与用户责任。`,
   robots: { index: true, follow: true },
 };

@@ -6,8 +6,9 @@ import { siteConfig } from "@/config/site";
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),
   title: {
-    default: `${siteConfig.name} - 短视频解析下载工具`,
-    template: `%s - ${siteConfig.name}`,
+    default: "短视频解析下载工具",
+    // 子页标题不再追加站名（之前模板会生成「xxx - 神族九帝」）
+    template: "%s",
   },
   description:
     "在线免费短视频解析工具，支持抖音、快手、B站、微博、小红书、西瓜、虎牙、X 等 24+ 平台，粘贴链接即得无水印视频下载地址，无需安装、即贴即用。",

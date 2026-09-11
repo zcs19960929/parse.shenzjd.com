@@ -3,7 +3,7 @@ import LegalLayout from "@/components/LegalLayout";
 import { siteConfig } from "@/config/site";
 
 export const metadata: Metadata = {
-  title: `权利通知 - ${siteConfig.name}`,
+  title: "权利通知",
   description: `${siteConfig.name} 权利通知与版权投诉流程，尊重并保护知识产权。`,
   robots: { index: true, follow: true },
 };
